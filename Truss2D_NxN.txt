@@ -1,0 +1,307 @@
+/PREP7
+
+!---Read the input parameters in para_in.txt----------
+!********** Input Constants
+*DIM,PARA,ARRAY,8,1
+*CREATE,ANSUITMP
+*VREAD,PARA(1),C:\Users\srika\Desktop\genDes_Analysis\para_in,txt,,IJK,8,1
+(F5.0)
+*END
+/INPUT,ANSUITMP 
+
+!********** Define Constants
+TEMP_SEL = PARA(1)
+SEL = (TEMP_SEL)*(10**(-3)) ! Unit cell side length
+TEMP_RAD = PARA(2)
+SEC_RADIUS = (TEMP_RAD)*(10**(-6))
+E_MATERIAL = PARA(3)
+CA_LENGTH = PARA(4)
+STRAIN_DIR = PARA(5)
+SIDENUM = PARA(6)
+NUMLRCE = PARA(7)
+NUMTBCE = PARA(8)
+PRXY_STANDIN = 0.49
+
+!********** Input Semicircle Cross-Section Properties Array (A)
+*DIM,TEMPCSPA,ARRAY,9,1
+*CREATE,ANSUITMP
+*VREAD,TEMPCSPA(1),C:\Users\srika\Desktop\genDes_Analysis\para_in,txt,,IJK,9,,,8
+(F5.0)
+*END
+/INPUT,ANSUITMP
+*DIM,CSPA,ARRAY,9,1
+RESIZEA = 10**(-10)
+*VOPER,CSPA,TEMPCSPA,MULT,RESIZEA
+
+!********** Input Semicircle Cross-Section Properties Array (B)
+*DIM,TEMPCSPB,ARRAY,3,1
+*CREATE,ANSUITMP
+*VREAD,TEMPCSPB(1),C:\Users\srika\Desktop\genDes_Analysis\para_in,txt,,IJK,3,,,17
+(F5.0)
+*END
+/INPUT,ANSUITMP
+*DIM,CSPB,ARRAY,3,1
+RESIZEB = 10**(-15)
+*VOPER,CSPB,TEMPCSPB,MULT,RESIZEB
+
+!********** Input Edge Members Logical Array 
+*DIM,EDGELOG,ARRAY,CA_LENGTH,1
+*CREATE,ANSUITMP
+*VREAD,EDGELOG(1),C:\Users\srika\Desktop\genDes_Analysis\para_in,txt,,IJK,CA_LENGTH,,,20
+(F5.0)
+*END
+/INPUT,ANSUITMP
+
+!********** Input Constraint Equation Startpoints Array 
+*DIM,CES,ARRAY,(NUMLRCE+NUMTBCE),1
+*CREATE,ANSUITMP
+*VREAD,CES(1),C:\Users\srika\Desktop\genDes_Analysis\para_in,txt,,IJK,(NUMLRCE+NUMTBCE),,,(20+CA_LENGTH)
+(F5.0)
+*END
+/INPUT,ANSUITMP 
+
+!********** Input Constraint Equation Endpoints Array 
+*DIM,CEE,ARRAY,(NUMLRCE+NUMTBCE),1
+*CREATE,ANSUITMP
+*VREAD,CEE(1),C:\Users\srika\Desktop\genDes_Analysis\para_in,txt,,IJK,(NUMLRCE+NUMTBCE),,,((20+CA_LENGTH)+(NUMLRCE+NUMTBCE))
+(F5.0)
+*END
+/INPUT,ANSUITMP 
+
+!********** Input Connectivity Array (Left Side/ Start Points)
+*DIM,CAL,ARRAY,CA_LENGTH,1
+*CREATE,ANSUITMP
+*VREAD,CAL(1),C:\Users\srika\Desktop\genDes_Analysis\para_in,txt,,IJK,CA_LENGTH,,,((20+CA_LENGTH)+(2*(NUMLRCE+NUMTBCE)))
+(F5.0)
+*END
+/INPUT,ANSUITMP 
+
+!********** Input Connectivity Array (Right Side/ End Points)
+*DIM,CAR,ARRAY,CA_LENGTH,1
+*CREATE,ANSUITMP
+*VREAD,CAR(1),C:\Users\srika\Desktop\genDes_Analysis\para_in,txt,,IJK,CA_LENGTH,,,((20+CA_LENGTH)+CA_LENGTH+(2*(NUMLRCE+NUMTBCE)))
+(F5.0)
+*END
+/INPUT,ANSUITMP 
+!-------------------------------------------------------
+
+
+!------------ Run APDL Script --------------------------
+!********** Initialize model parameters
+! Element Type for Beams-- Non-Edge
+ET,1,BEAM188
+
+! Cross Sectional Properties-- Non-Edge
+SECTYPE,1,BEAM,CSOLID,BEAMSEC1,0
+SECDATA,SEC_RADIUS,8,1
+
+! Element Type for Beams-- Edge
+ET,2,BEAM188
+
+! Cross Sectional Properties-- Edge
+SECTYPE,2,BEAM,ASEC,BEAMSEC2,0
+SECDATA,CSPA(1),CSPB(1),CSPA(2),CSPB(2),CSPA(3),CSPB(3),CSPA(4),CSPA(5),CSPA(6),CSPA(7),CSPA(8),CSPA(9)
+
+! Element Type for Dummy Nodes
+ET,3,MASS21,0,0,2
+R,3,20
+
+! Material
+MPTEMP,,,,,,,,  
+MPTEMP,1,0  
+MPDATA,EX,1,,E_MATERIAL
+MPDATA,PRXY,1,,PRXY_STANDIN
+
+!********** Define Grid Coordinates
+*DIM,XCOORDS,ARRAY,(SIDENUM**2),1
+*DIM,YCOORDS,ARRAY,(SIDENUM**2),1
+*DIM,NODENUMS,ARRAY,(SIDENUM**2),1
+COUNTER = 0
+
+*DO,i,0,(SIDENUM-1),1
+*DO,j,0,(SIDENUM-1),1
+COUNTER = COUNTER + 1
+NODENUMS(COUNTER) = COUNTER
+XCOORDS(COUNTER) = ((i*SEL)/(SIDENUM-1))
+YCOORDS(COUNTER) = ((j*SEL)/(SIDENUM-1))
+*ENDDO
+*ENDDO
+
+!********** Define Dummy Nodes
+! Define Nodes for Dummy Nodes
+N,((SIDENUM**2) + 1),(XCOORDS(SIDENUM**2) + SEL),0,0,0,0,0
+N,((SIDENUM**2) + 2),0,(YCOORDS(SIDENUM**2) + SEL),0,0,0,0
+
+! Define Mass Elements at Dummy Nodes
+TYPE,3
+REAL,3
+E,((SIDENUM**2) + 1)
+E,((SIDENUM**2) + 2)
+
+!********** Define Beam Elements
+! Plot Grid Nodes
+N,NODENUMS(1:(SIDENUM**2)),XCOORDS(1:(SIDENUM**2)),YCOORDS(1:(SIDENUM**2)),0
+
+! Define Element Type (Non-Edge)
+TYPE,1
+REAL,1
+
+! Draw Elements (Non-Edge)
+*DO,a,1,CA_LENGTH,1
+*IF,EDGELOG(a),EQ,0,THEN
+E,CAL(a),CAR(a),,,,,,,,
+*ENDIF
+*ENDDO
+
+! Define Element Type (Edge)
+TYPE,2
+REAL,2
+
+! Draw Elements (Edge)
+*DO,s,1,CA_LENGTH,1
+*IF,EDGELOG(s),EQ,1,THEN
+E,CAL(s),CAR(s),,,,,,,,
+*ENDIF
+*ENDDO
+
+! ********* Boundary conditions
+! No Z Displacement Anywhere
+NSEL,ALL
+D,ALL,UZ,0
+
+! No Displacement of Node 1
+D,1,UX,0
+D,1,UY,0
+
+! Left and Right Side PBC Linking in X and Y
+*DO,i,(1),(NUMLRCE),1
+CE,NEXT,0,CEE(i),UX,-1,CES(i),UX,1,((SIDENUM**2)+1),UX,1
+CE,NEXT,0,CEE(i),UY,-1,CES(i),UY,1,((SIDENUM**2)+1),UY,1
+*ENDDO
+
+! Top and Bottom Side PBC Linking in X and Y
+*DO,i,(NUMLRCE+1),(NUMLRCE+NUMTBCE),1
+CE,NEXT,0,CEE(i),UX,-1,CES(i),UX,1,((SIDENUM**2)+2),UX,1
+CE,NEXT,0,CEE(i),UY,-1,CES(i),UY,1,((SIDENUM**2)+2),UY,1
+*ENDDO
+
+! *** X-Direction Stretch
+*IF,STRAIN_DIR,EQ,1,THEN
+
+! Applied Displacements to Dummy Node at Right End (non-zero in X, zero in Y)
+D,((SIDENUM**2) + 1),UX,(SEL*(0.001))
+D,((SIDENUM**2) + 1),UY,0
+
+! Applied Displacements to Dummy Node at Top End (zero in X and Y)
+D,((SIDENUM**2) + 2),UX,0
+D,((SIDENUM**2) + 2),UY,0
+
+! No X Force in Middle
+!NSEL,S,LOC,X,(SEL/(SIDENUM-1)),((SEL*(SIDENUM-2))/(SIDENUM-1))
+!NSEL,R,LOC,Y,(SEL/(SIDENUM-1)),((SEL*(SIDENUM-2))/(SIDENUM-1))
+!F,ALL,FX,0
+
+! No Y Force in Middle
+!NSEL,S,LOC,Y,(SEL/(SIDENUM-1)),((SEL*(SIDENUM-2))/(SIDENUM-1))
+!NSEL,R,LOC,X,(SEL/(SIDENUM-1)),((SEL*(SIDENUM-2))/(SIDENUM-1))
+!F,ALL,FY,0
+
+! *** Y-Direction Stretch
+*ELSEIF,STRAIN_DIR,EQ,2
+
+! Applied Displacements to Dummy Node at Right End (non-zero in X, zero in Y)
+D,((SIDENUM**2) + 1),UX,0
+D,((SIDENUM**2) + 1),UY,0
+
+! Applied Displacements to Dummy Node at Top End (zero in X and Y)
+D,((SIDENUM**2) + 2),UX,0
+D,((SIDENUM**2) + 2),UY,(SEL*(0.001))
+
+! No X Force in Middle
+!NSEL,S,LOC,X,(SEL/(SIDENUM-1)),((SEL*(SIDENUM-2))/(SIDENUM-1))
+!NSEL,R,LOC,Y,(SEL/(SIDENUM-1)),((SEL*(SIDENUM-2))/(SIDENUM-1))
+!F,ALL,FX,0
+
+! No Y Force in Middle
+!NSEL,S,LOC,Y,(SEL/(SIDENUM-1)),((SEL*(SIDENUM-2))/(SIDENUM-1))
+!NSEL,R,LOC,X,(SEL/(SIDENUM-1)),((SEL*(SIDENUM-2))/(SIDENUM-1))
+!F,ALL,FY,0
+
+! *** XY-Shear
+*ELSE
+
+! No Forces on Dummy Node at Right End (zero in X and Y)
+D,((SIDENUM**2) + 1),UX,0
+D,((SIDENUM**2) + 1),UY,(SEL*(0.0005)) 
+!D,((SIDENUM**2) + 1),UY,0
+
+! Applied Displacements to Dummy Node at Top End (non-zero in X, zero in Y)
+D,((SIDENUM**2) + 2),UX,(SEL*(0.0005)) 
+!D,((SIDENUM**2) + 2),UX,(SEL*(0.001))
+D,((SIDENUM**2) + 2),UY,0
+
+! No Rotations On Left Edge
+NSEL,S,LOC,X,0,0
+NSEL,R,LOC,Y,0,SEL
+!NSEL,ALL
+D,ALL,ROTX,0
+D,ALL,ROTY,0
+D,ALL,ROTZ,0
+
+! No X Force in Middle
+!NSEL,S,LOC,X,(SEL/(SIDENUM-1)),((SEL*(SIDENUM-2))/(SIDENUM-1))
+!NSEL,R,LOC,Y,(SEL/(SIDENUM-1)),((SEL*(SIDENUM-2))/(SIDENUM-1))
+!F,ALL,FX,0
+
+! No Y Force in Middle
+!NSEL,S,LOC,Y,(SEL/(SIDENUM-1)),((SEL*(SIDENUM-2))/(SIDENUM-1))
+!NSEL,R,LOC,X,(SEL/(SIDENUM-1)),((SEL*(SIDENUM-2))/(SIDENUM-1))
+!F,ALL,FY,0
+
+*ENDIF
+
+
+ALLSEL,ALL
+FINISH
+
+! ********** SOLVE
+/SOL
+SOLVE   
+FINISH 
+!-------------------------------------------------------
+
+
+!-------------------write results-----------------------
+! ********** POSTPROCESSING
+/POST26
+NUMVAR,4
+
+! Separating X-Forces
+RFORCE,2,((SIDENUM**2)+1),F,X
+
+! Separating Y-Forces
+RFORCE,3,((SIDENUM**2)+2),F,Y
+
+! Separating XY-Forces
+RFORCE,4,((SIDENUM**2)+2),F,X
+
+*DIM,RESULT,ARRAY,3,1
+*DO,k,1,3,1
+VGET,RESULT(k),(k+1),1,0
+*ENDDO
+
+
+!----------output the result to para_out.txt -----------
+!*VLEN,1
+*CREATE,EE
+*CFOPEN,C:\Users\srika\Desktop\genDes_Analysis\para_out,txt,,
+*VWRITE,RESULT(1)
+(E20.10)
+*CFCLOS
+*END
+/INPUT,EE
+
+!-------------------------------------------------------
+
+
+
